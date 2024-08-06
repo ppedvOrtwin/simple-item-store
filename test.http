@@ -1,0 +1,20 @@
+@host = http://localhost:3000
+
+# Get all items
+GET {{@host}}
+Accept: */*
+
+# Get all items
+GET {{@host}}/items
+Accept: application/json
+
+# Add a new item
+POST {{@host}}/item
+Content-Type: application/json
+{
+    "id": "1",
+    "name": "First Item"
+}
+
+# Delete an item by ID
+DELETE {{@host}}/item/1
