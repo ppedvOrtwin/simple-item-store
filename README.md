@@ -1,4 +1,4 @@
-# TODO-Server
+# Simple Item Server
 
 ## Description
 
@@ -12,12 +12,20 @@ Get array of items
 curl -X GET http://localhost:3000/items
 ```
 
-Post one item
+Create one item
 
 ```
 curl -X POST http://localhost:3000/item \
 -H "Content-Type: application/json" \
 -d "{\"id\":"1",\"name\":\"First Item\"}"
+```
+
+Update one item
+
+```
+curl -X PUT http://localhost:3000/item/1 \
+-H "Content-Type: application/json" \
+-d "{\"id\":"1",\"name\":\"Updated Item\"}"
 ```
 
 Delete item by id

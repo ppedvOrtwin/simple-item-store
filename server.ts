@@ -38,14 +38,29 @@ app.get("/items", (req, res) => {
 // Route to add a new item
 app.post("/item", async (req, res) => {
   const newItem = req.body;
+  console.log("creating", JSON.stringify(newItem));
   items.push(newItem);
   await fs.writeFile(fileName, JSON.stringify(items, null, 2));
   res.status(201).send(newItem);
 });
 
+app.put("/item/:id", async (req, res) => {
+  const newItem = req.body;
+  console.log("updating", JSON.stringify(newItem));
+  const index = items.findIndex((item) => item.id == req.params.id);
+  if (index !== -1) {
+    items[index] = newItem;
+    await fs.writeFile(fileName, JSON.stringify(items, null, 2));
+    res.sendStatus(204);
+  } else {
+    res.status(404).send("Item not found");
+  }
+});
+
 // Route to delete an item by ID
 app.delete("/item/:id", async (req, res) => {
   const index = items.findIndex((item) => item.id == req.params.id);
+  console.log("deleting", JSON.stringify(items[index]));
 
   if (index !== -1) {
     items.splice(index, 1);

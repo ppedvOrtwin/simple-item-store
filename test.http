@@ -16,5 +16,13 @@ Content-Type: application/json
     "name": "First Item"
 }
 
+# Update a new item
+PUT {{@host}}/item
+Content-Type: application/json
+{
+    "id": "1",
+    "name": "Updated Item"
+}
+
 # Delete an item by ID
 DELETE {{@host}}/item/1
