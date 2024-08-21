@@ -1,9 +1,9 @@
 import express from "express";
 import fs from "fs/promises";
+import path from "path";
 import cors from "cors";
 import WebSocket from "ws";
 
-const DEFAULT_NAME = "items";
 const app = express();
 const port = 3000;
 
@@ -93,11 +93,16 @@ const httpServer = app.listen(port, () => {
 });
 
 const wss = new WebSocket.Server({ server: httpServer });
-wss.on("connection", async (ws) => {
-  console.log(`WebSocket opened on ws://localhost:${ws.url}`);
-  
-  const store = await createStore(DEFAULT_NAME);
-  ws.send(JSON.stringify({ [DEFAULT_NAME]: store.items }));
+wss.on("connection", async (ws) => {  
+  const allItems = await fs.readdir("./stores")
+    .then(f => f.reduce(async (acc, cur) => {
+      const name = path.basename(cur, '.json');
+      const store = await createStore(name);
+      return { ...acc, [name]: store.items };
+    }, {}));
+
+  console.log(`sending ${Object.keys(allItems).length} item set(s)`);
+  ws.send(JSON.stringify(allItems));
 
   ws.on("message", (message: WebSocket.RawData) => {
     console.log("creating %s", message);
@@ -108,7 +113,7 @@ wss.on("connection", async (ws) => {
   });
 });
 
-function broadcast<T>(items: T, name = DEFAULT_NAME) {
+function broadcast<T>(items: T, name: string) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({ [name]: items }));
