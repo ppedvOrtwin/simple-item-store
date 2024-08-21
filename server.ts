@@ -3,33 +3,37 @@ import fs from "fs/promises";
 import cors from "cors";
 import WebSocket from "ws";
 
-const fileName = "./items.json";
+const DEFAULT_NAME = "items";
 const app = express();
 const port = 3000;
 
 app.use(express.json());
 app.use(cors());
 
-let items: { id: string }[] = [];
+async function createStore(name: string) {
+  const fileName = `./stores/${name}.json`;
+  let items: { id: string }[] = [] as const;
 
-// Function to load items from the file
-async function loadItems() {
-  try {
-    const data = await fs.readFile(fileName, { encoding: "utf8" });
-    items = JSON.parse(data);
-  } catch (error) {
-    // If the file doesn't exist, initialize an empty array
-    items = [];
+  // Function to load items from the file
+  async function load() {
+    try {
+      const data = await fs.readFile(fileName, { encoding: "utf8" });
+      items = JSON.parse(data);
+    } catch (error) {
+      // If the file doesn't exist, initialize an empty array
+      items = [];
+    }
   }
-}
 
-async function saveItems() {
-  await fs.writeFile(fileName, JSON.stringify(items, null, 2));
-  broadcastItems(items);
-}
+  async function save() {
+    await fs.writeFile(fileName, JSON.stringify(items, null, 2));
+    broadcast(items, name);
+  }
 
-// Load items when the server starts
-loadItems();
+  await load();
+
+  return { load, save, items };
+}
 
 // Route to get all items
 app.get("/", (req, res) => {
@@ -37,26 +41,32 @@ app.get("/", (req, res) => {
 });
 
 // Route to get all items
-app.get("/items", (req, res) => {
-  res.send(items);
+app.get("/:name", async (req, res) => {
+  const store = await createStore(req.params.name);
+  res.send(store.items);
 });
 
 // Route to add a new item
-app.post("/item", async (req, res) => {
+app.post("/:name", async (req, res) => {
   const newItem = req.body;
   console.log("creating", JSON.stringify(newItem));
-  items.push(newItem);
-  await saveItems();
+
+  const store = await createStore(req.params.name);
+  store.items.push(newItem);
+  await store.save();
+
   res.status(201).send(newItem);
 });
 
-app.put("/item/:id", async (req, res) => {
+app.put("/:name/:id", async (req, res) => {
   const newItem = req.body;
   console.log("updating", JSON.stringify(newItem));
-  const index = items.findIndex((item) => item.id == req.params.id);
+
+  const store = await createStore(req.params.name);
+  const index = store.items.findIndex((item) => item.id == req.params.id);
   if (index !== -1) {
-    items[index] = newItem;
-    await saveItems();
+    store.items[index] = newItem;
+    await store.save();
     res.sendStatus(204);
   } else {
     res.status(404).send("Item not found");
@@ -64,13 +74,14 @@ app.put("/item/:id", async (req, res) => {
 });
 
 // Route to delete an item by ID
-app.delete("/item/:id", async (req, res) => {
-  const index = items.findIndex((item) => item.id == req.params.id);
-  console.log("deleting", JSON.stringify(items[index]));
+app.delete("/:name/:id", async (req, res) => {
+  const store = await createStore(req.params.name);
+  const index = store.items.findIndex((item) => item.id == req.params.id);
+  console.log("deleting", JSON.stringify(store.items[index]));
 
   if (index !== -1) {
-    items.splice(index, 1);
-    await saveItems();
+    store.items.splice(index, 1);
+    await store.save();
     res.sendStatus(204);
   } else {
     res.status(404).send("Item not found");
@@ -82,11 +93,14 @@ const httpServer = app.listen(port, () => {
 });
 
 const wss = new WebSocket.Server({ server: httpServer });
-wss.on("connection", (ws) => {
-  ws.send(JSON.stringify(items, null, 2));
+wss.on("connection", async (ws) => {
+  console.log(`WebSocket opened on ws://localhost:${ws.url}`);
+  
+  const store = await createStore(DEFAULT_NAME);
+  ws.send(JSON.stringify({ [DEFAULT_NAME]: store.items }));
 
-  ws.on("message", (message) => {
-    console.log("received: %s", message);
+  ws.on("message", (message: WebSocket.RawData) => {
+    console.log("creating %s", message);
   });
 
   ws.on("close", () => {
@@ -94,10 +108,10 @@ wss.on("connection", (ws) => {
   });
 });
 
-function broadcastItems<T>(items: T) {
+function broadcast<T>(items: T, name = DEFAULT_NAME) {
   wss.clients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(items, null, 2));
+      client.send(JSON.stringify({ [name]: items }));
     }
   });
 }

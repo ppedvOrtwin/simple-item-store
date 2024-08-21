@@ -9,7 +9,7 @@ GET {{@host}}/items
 Accept: application/json
 
 # Add a new item
-POST {{@host}}/item
+POST {{@host}}/items
 Content-Type: application/json
 {
     "id": "1",
@@ -17,7 +17,7 @@ Content-Type: application/json
 }
 
 # Update a new item
-PUT {{@host}}/item
+PUT {{@host}}/items
 Content-Type: application/json
 {
     "id": "1",
@@ -25,4 +25,4 @@ Content-Type: application/json
 }
 
 # Delete an item by ID
-DELETE {{@host}}/item/1
+DELETE {{@host}}/items/1
